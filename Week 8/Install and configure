@@ -1,0 +1,69 @@
+Install Collectd:-
+    sudo apt-get install collectd collectd-utils
+    sudo apt-get install python-setuptools  # for using python plugin
+
+Configure collectd:-
+    Turn on collectd plugins from "collectd.conf" file in "/etc/collectd/collectd.conf"
+
+Install influxdb:-
+    sudo sudo curl -sL https://repos.influxdata.com/influxdb.key | sudo apt-key add -
+    sudo echo "deb https://repos.influxdata.com/ubuntu focal stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
+    sudo apt-get install influxdb
+
+Configure influx:-
+    use "sudo influx" to use its interpreter
+
+    Create a user
+        CREATE USER sid WITH PASSWORD 'sid' WITH ALL PRIVILEGES
+
+    Now we can login using our user:-
+
+        influx -username sid -password sid
+
+    Create database using:-
+        
+        CREATE DATABASE collectd
+
+Send data from collectd to influxdb:-
+
+To recieve data we need to specify in influx conf file(/etc/influxdb/influxdb.conf):-
+    [[collectd]]
+    enabled = true
+    bind-address = ":25826"
+    database = "collectd"
+    retention-policy = ""
+    typesdb = "/usr/local/share/collectd/types.db"
+    batch-size = 5000
+    batch-pending = 10
+    batch-timeout = "10s"
+    read-buffer = 0    
+
+To send data we have to specify network in collectd plugin :-
+    <Plugin  "network">    
+      Server "ip of influxd" "port"
+    </Plugin>  
+
+Install grafana:-
+    wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+    sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
+    sudo apt install grafana
+
+Add influx as data source in grafana using web interface(http://<Ip address>:3000):-
+    Setting -> data source -> add data source -> select influxdb
+    and enter all details for influx db
+
+Install Riemann:-
+
+    wget https://github.com/riemann/riemann/releases/download/0.3.6/riemann-0.3.6.tar.bz2
+    tar xvfj riemann-0.3.6.tar.bz2
+    cd riemann-0.3.6
+    wget https://github.com/riemann/riemann/releases/download/0.3.6/riemann-0.3.6.tar.bz2.md5
+    cd ..
+    md5sum -c riemann-0.3.6/riemann-0.3.6.tar.bz2.md5
+
+Add the host address in "etc/riemann-config"
+
+    (let [host "192.168.100.126"]
+        (tcp-server {:host host})
+        (udp-server {:host host})
+        (ws-server  {:host host}))

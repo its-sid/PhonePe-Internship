@@ -1,0 +1,105 @@
+---
+- name: setup galera
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    root_password: "intern"
+    ip:
+      - '192.168.1.1'
+      - '192.168.1.2'
+      - '192.168.1.3'
+  tasks:
+    - name: import key
+      command: apt-key adv --fetch-keys 'https://mariadb.org/mariadb_release_signing_key.asc'
+
+    - name: add repo
+      apt_repository:
+        filename: mariadb-10.5.6 
+        repo: deb [arch=amd64] https://archive.mariadb.org/mariadb-10.5.6/repo/ubuntu/ focal main
+        state: present
+
+    - name: install mariadb
+      apt: 
+        name: ['mariadb-server','mariadb-client','mariadb-backup']
+        state: latest
+
+    - name: install python-mysqldb
+      apt: 
+        name: ['python3-pymysql'] 
+        state: present
+
+    - name: Start MariaDB
+      service:
+        name: mysql
+        enabled: true
+        state: started
+
+    - name: set root password
+      mysql_user:
+        check_implicit_admin: true
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        login_user: root
+        login_password: "{{ root_password }}"
+        user: root
+        password: "{{ root_password }}"
+        host: localhost
+
+    - name: Secure the root user for IPV6 localhost (::1)
+      mysql_user: login_user=root login_password="{{ root_password }}" user=root password="{{ root_password }}" host="::1"
+
+    - name: Secure the root user for IPV4 localhost (127.0.0.1)
+      mysql_user: login_user=root login_password="{{ root_password }}" user=root password="{{ root_password }}" host="127.0.0.1"
+
+    - name: Secure the root user for localhost domain
+      mysql_user: login_user=root login_password="{{ root_password }}" user=root password="{{ root_password }}" host="localhost"
+
+    - name: Secure the root user for server_hostname domain
+      mysql_user: login_user=root login_password="{{ root_password }}" user=root password="{{ root_password }}" host="{{ ansible_fqdn }}"
+
+    - name: Deletes anonymous server user
+      mysql_user: login_user=root login_password="{{ root_password }}" user="" host_all=yes state=absent
+
+    - name: Removes the test database
+      mysql_db: login_user=root login_password="{{ root_password }}" db=test state=absent
+
+    - name: copy cnf file
+      copy:
+        src: /Users/siddharths.intern1/Desktop/Intern/Week 4/galera.cnf
+        dest: /etc/mysql/conf.d/galera.cnf
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Ansible replace string example
+      replace:
+        path: /etc/mysql/conf.d/galera.cnf
+        regexp: "<FQDN of hosts>"
+        replace: "{{ ip|join(',') }}"
+
+    - name: Ansible replace string example
+      replace:
+        path: /etc/mysql/conf.d/galera.cnf
+        regexp: "<FQDN of current node>"
+        replace: "{{a}}"
+
+
+    - name: Stop MariaDB on first MariaDB Galera cluster node
+      service: name=mariadb state=stopped
+    
+
+
+    - name: Bootstrap first MariaDB Galera cluster node
+      command: galera_new_cluster
+      run_once: true
+
+    - name: start the other MariaDB Galera cluster nodes
+      service: name=mariadb state=started
+
+
+
+
+
+      
+
+    

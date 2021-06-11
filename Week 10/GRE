@@ -1,0 +1,38 @@
+sudo ip tunnel add Tunnel-R2 mode gre remote 10.0.0.2 local 10.0.0.9 ttl 255
+sudo ip link set Tunnel-R2 up
+sudo ip addr add 10.0.100.1 dev Tunnel-R2
+sudo ip route add 10.0.100.0/24 dev Tunnel-R2
+
+# Tunnel-R1 configuration
+auto swp1 #underlay interface for tunnel
+iface swp1
+    link-speed 10000
+    link-duplex full
+    link-autoneg off
+    address 10.0.0.9/24
+
+auto Tunnel-R2
+iface Tunnel-R2
+    tunnel-mode gre
+    tunnel-endpoint 10.0.0.2
+    tunnel-local 10.0.0.9
+    tunnel-ttl 255
+    address 10.0.100.1
+    up ip route add 10.0.100.0/24 dev Tunnel-R2
+
+# Tunnel-R2 configuration
+auto swp1 #underlay interface for tunnel
+iface swp1
+    link-speed 10000
+    link-duplex full
+    link-autoneg off
+    address 10.0.0.2/24
+
+auto Tunnel-R1
+iface Tunnel-R1
+    tunnel-mode gre
+    tunnel-endpoint 10.0.0.9
+    tunnel-local 10.0.0.2
+    tunnel-ttl 255
+    address 10.0.200.1
+    up ip route add 10.0.200.0/24 dev Tunnel-R1

@@ -1,0 +1,13 @@
+---
+ - name: "Playbook to test the inventory_hostname and ansible_hostname"
+   hosts: all
+   
+   tasks:
+
+    - name: What is my inventory_hostname
+      debug: var={{ansible_play_hosts_all}}
+
+    - debug:
+        msg: "System {{ inventory_hostname }} has uuid {{ ansible_play_hosts_all|join(',')}}"
+    - name: What is my ansible_hostname
+      debug: var={{ansible_hostname}}

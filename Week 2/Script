@@ -1,0 +1,96 @@
+#! /bin/bash
+a=$1
+#T1 Summary for day/month
+host_req_count()
+{
+    awk '{print $NF}' $1 | sort | uniq -c | sort -r | awk '{print "Highest requested host : ",$2;exit}'
+}
+upip_req_count()
+{
+    awk '{print $9}' $1 | cut -d ':' -f 1 | sort | uniq -c | sort -r | awk '{print "Highest requested upstream_ip : ",$2 ; exit}'
+}
+path_req_count()
+{
+    awk '{print $5}' $1| cut -d '/' -f 2,3 | sort | uniq -c | sort -r | awk '{print "Highest requested path :",$2;exit}'
+}
+summary()
+{
+a=$1
+echo -e "\nSummary for Days : "
+awk '{print substr($2,1,11)}' $a | sort | uniq | cat | while read x;
+do
+grep $x $a > te ;
+echo -e "\nSummary for day $x :"
+host_req_count te
+upip_req_count te
+path_req_count te
+done
+
+echo -e "\nSummary for months : "
+awk '{print substr($2,1,11)}' $a | cut -d'/' -f 2,3 | sort | uniq | cat | while read x;
+do
+grep $x $a > te ;
+echo -e "\nSummary for the month $x :"
+host_req_count te
+upip_req_count te
+path_req_count te
+done
+}
+summary $a
+
+#T2 Request per statuscode
+
+echo -e "\nRequests per status code : "
+awk '{print $7}' $a | sort | uniq -c | awk '$2 ~ /404|401|502|504|500|200/ {print "Total request for status code ",$2," is:",$1}'
+
+
+#T3 Top requests:
+echo -e "\n"
+awk '{print substr($9,1,11)'} $a | sort | uniq -c | sort -r | awk 'BEGIN {print "Top 5 requests by upstream_ip are : "}''cnt<5{cnt++; print $2}'
+echo -e "\n"
+awk '{print $NF}' access.log | sort | uniq -c | sort -r | awk 'BEGIN {print "Top 5 requests by host are : "}''cnt<5{cnt++;print $2}'
+echo -e "\n"
+awk '{print $10'} access.log | sort | uniq -c | sort -r | awk 'BEGIN {print "Top 5 sizes of body bytes send are : "}''cnt<5{cnt++; print $2}'
+echo -e "\n"
+awk '{print $5}' $a | cut -d '/' -f 2,3 | sort | uniq -c | sort -r | awk 'BEGIN {print "Top 5 requests for path are : "}''cnt<5{cnt++;print $2}'
+echo -e "\n"
+awk '{print $8}' $a | sort | uniq -c | sort -r | awk 'BEGIN {print "Top 5 highest response time are : "}''cnt<5{cnt++; print $2}'
+echo -e "\n"
+
+#T4
+
+awk '{print NR" "$0}' $a | sort -k1 -n -r | awk '$8 == 200 {print "Last time status code 200 was revieved :",$3; exit}' 
+awk '{print NR" "$0}' $a | sort -k1 -n -r | awk '$8 ~ /5../ {print "Last time status code 5xx was revieved :",$3; exit}'
+awk '{print NR" "$0}' $a | sort -k1 -n -r | awk '$8 ~ /4../ {print "Last time status code 400 was revieved :",$3; exit}' 
+
+#T6
+awk 'BEGIN{print "All request with response time greater than 2 Seconds are : \n"}''$8 > 2 {print $0}' $a
+echo -e "\n"
+awk 'BEGIN{print "All request with response time greater than 5 Seconds are : \n"}''$8 > 5  {print $0;}' $a
+echo -e "\n"
+awk 'BEGIN{print "All request with response time greater than 10 Seconds are : \n"}''$8 > 10 {print $0;}' $a
+echo -e "\n"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+https://www.tutorialspoint.com/awk/awk_output_redirection.htm
+https://www.tecmint.com/use-linux-awk-command-to-filter-text-string-in-files/
+https://stackoverflow.com/questions/14739057/using-awk-with-column-value-conditions
+https://www.javatpoint.com/bash-functions
+https://thomas-cokelaer.info/blog/2011/05/awk-the-substr-command-to-select-a-substring/
+https://stackoverflow.com/questions/2746553/read-values-into-a-shell-variable-from-a-pipe#:~:text=Explanation%3A%20When%20a%20script%20receives,a%20symlink%20to%20a%20pipe.&text=The%20bash%20%5B%5B%20%2Dp%20option,it%20inside%20the%20if%20condition.

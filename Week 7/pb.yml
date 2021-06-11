@@ -1,0 +1,130 @@
+---
+- name: install erl
+  hosts: all
+  gather_facts: true
+  become: true
+  vars:
+    rabbitmq_erlang_cookie: WKRBTTEQRYPTQOPUKSVF
+    rabbitmq_cluster_master: intern1
+    rabbitmq_hosts: |
+      192.168.3.1 intern1
+      192.168.3.2 intern2
+      192.168.3.3 intern3
+
+  tasks:
+    - name: import key(erl)
+      apt_key:
+        url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+        state: present
+
+    - name: add apt repository(erl)
+      apt_repository:
+        repo: "deb https://packages.erlang-solutions.com/ubuntu bionic contrib"
+        update_cache: yes
+        state: present
+
+    - name: import key(rmq)
+      apt_key:
+        url: https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey
+        state: present
+
+
+    - name: add apt repository(rmq)
+      apt_repository:
+        repo: "deb https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu/ bionic main"
+        update_cache: yes
+        state: present
+
+    - name: install(erl)
+      apt: 
+        name: ['esl-erlang=1:21.3.8-1']
+        state: fixed
+
+    - name: install(extra)
+      apt: 
+        name: ['erlang-base=1:21.3.8-1','erlang-crypto=1:21.3.8-1','erlang-asn1=1:21.3.8-1','erlang-eldap=1:21.3.8-1','erlang-ftp=1:21.3.8-1','erlang-inets=1:21.3.8-1','erlang-mnesia=1:21.3.8-1','erlang-os-mon=1:21.3.8-1','erlang-parsetools=1:21.3.8-1','erlang-public-key=1:21.3.8-1','erlang-runtime-tools=1:21.3.8-1','erlang-snmp=1:21.3.8-1','erlang-ssl=1:21.3.8-1','erlang-syntax-tools=1:21.3.8-1','erlang-tftp=1:21.3.8-1','erlang-tools=1:21.3.8-1','erlang-xmerl=1:21.3.8-1']
+  
+
+    - name: install(rmq)
+      apt: 
+        name: ['rabbitmq-server=3.7.9-1']
+        state: fixed
+
+    - name: host
+      blockinfile:
+        path: /etc/hosts
+        block: "{{ rabbitmq_hosts }}"
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: remove old erlang cookie
+      file:
+        path: /var/lib/rabbitmq/.erlang.cookie
+        state: absent
+
+    - name: same cookie
+      template:
+        src: erlang.cookie.j2
+        dest: /var/lib/rabbitmq/.erlang.cookie
+        owner: rabbitmq
+        group: rabbitmq
+        mode: 0400
+
+    - name: rabbitmq service started and enabled
+      service:
+        name: rabbitmq-server
+        enabled: yes
+        state: started
+
+    - name: rabbitmq service restart
+      service:
+        name: rabbitmq-server
+        state: restarted
+
+    - name: make sure rabbitmq app is up
+      command: rabbitmqctl start_app
+
+    - name: check if already in cluster
+      command: rabbitmqctl cluster_status
+      register: cluster_status
+      changed_when: false
+
+    - name: stop rabbitmq app
+      command: rabbitmqctl stop_app
+      when: Curnode != rabbitmq_cluster_master and cluster_status.stdout.find("rabbit@{{ Curnode }}") == -1
+
+    - name: add this node to cluster
+      command: rabbitmqctl join_cluster rabbit@{{ rabbitmq_cluster_master }}
+      when: Curnode != rabbitmq_cluster_master and cluster_status.stdout.find("rabbit@{{ Curnode }}") == -1
+
+    - name: start rabbitmq app
+      command: rabbitmqctl start_app
+      when: Curnode != rabbitmq_cluster_master and cluster_status.stdout.find("rabbit@{{ Curnode }}") == -1
+
+    - name: management pluggin
+      rabbitmq_plugin:
+        names: rabbitmq_management
+        state: enabled
+
+    - name: make a vhost
+      rabbitmq_vhost:
+        name: /host
+        state: present
+
+    - name: Ensure that rabbitmq guest user is removed
+      rabbitmq_user:
+        user: guest
+        state: absent
+
+    - name: Add main user
+      rabbitmq_user:
+        user: sid
+        password: sid
+        vhost: /host
+        configure_priv: .*
+        read_priv: .*
+        write_priv: .*
+        tags: monitoring
+        state: present
+

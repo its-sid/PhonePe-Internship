@@ -1,0 +1,11 @@
+https://github.com/stone-payments/ansible-rabbitmq
+
+https://docs.ansible.com/ansible/latest/user_guide/playbooks_intro.html
+
+https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys-2
+
+https://github.com/IronCore864/ansible-rabbitmq-cluster
+
+https://www.howtoforge.com/tutorial/how-to-set-up-rabbitmq-cluster-on-ubuntu-1804-lts/#step-setup-hosts-file
+
+ansible-playbook pb.yml --ask-become-pass

@@ -1,0 +1,113 @@
+1) Install Rabbitmq:
+
+        To install rabbitmq we have to install elang also
+        
+        To install specific version of elang we will use the following steps
+
+            Add repo(in sudo nano /etc/apt/sources.list):
+
+                # Erlang Solutions
+                deb https://packages.erlang-solutions.com/ubuntu focal contrib
+
+            Create and enter the following lines in file (/etc/apt/preferences.d/erlang) to install specific version:
+
+                Package: erlang* esl-erlang
+                Pin: version 1:21.3*
+                Pin-Priority: 501
+
+            Add key for following repository:
+
+                wget https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+                sudo apt-key add erlang_solutions.asc
+
+            Install erlang:
+
+                sudo apt-get update
+                sudo apt-get install esl-erlang
+             
+        To install rabbitmq3.7.9:
+
+        #Add the Repo(append the line in sudo nano /etc/apt/sources.list)
+
+        deb https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu/ bionic main
+        deb-src https://packagecloud.io/rabbitmq/rabbitmq-server/ubuntu/ bionic main
+
+        #key-Repo
+        sudo apt-key adv --keyserver "keyserver.ubuntu.com" --recv-keys "F6609E60DC62814E"
+
+        #install additional erlang packages
+
+        sudo apt-get install -y erlang-base \
+                                erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+                                erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+                                erlang-runtime-tools erlang-snmp erlang-ssl \
+                                erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl
+
+        #install rabitmq-server
+
+        sudo apt install rabbitmq-server=3.7.9-1
+
+2) Add 2 more nodes to the cluster without restarting RMQ service on first one
+
+    Install rabbitmq on 2 other VMs
+
+    We should set all hostname and ip address in /etc/hosts file so that the hostnames can be resolved
+    note: hostname should be same as the user on your linux os
+
+    Connect all 3 vms with each other (should be able to ping each other)
+
+    Setup ufw to open ports used by rabbitmq using:
+        
+        sudo ufw allow ssh
+        sudo ufw enable
+        sudo ufw allow 5672,15672,4369,25672/tcp
+        sudo ufw status
+
+    Each node should have same .erlang.cookie to connect to a cluster which is situated in /var/lib/rabbitmq/
+    so we will transfer .erlang.cookie from 1st vm to other 2 vms
+
+    we can use scp : 
+
+        scp /var/lib/rabbitmq/.erlang.cookie root@vm2:/var/lib/rabbitmq/
+
+    while transfering the file the owner and group of file changes to change it again we will use:
+
+        sudo chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie
+
+    Now to connect vm2 and vm3 we will restart rabbitmq-server and stop it:
+
+        sudo systemctl restart rabbitmq-server
+        sudo rabbitmqctl stop_app
+
+    Command to join a cluster is:
+
+        sudo rabbitmqctl join_cluster rabbit@hostname_of_vm1
+
+    Now we can start our node and check if its connected to the cluster
+
+        sudo rabbitmqctl start_app
+        sudo rabbitmqctl cluster_status
+
+    Reference link:
+
+    https://www.howtoforge.com/tutorial/how-to-set-up-rabbitmq-cluster-on-ubuntu-1804-lts/#step-setup-hosts-file
+
+3) Create a vhost and a user with read-write permissions to the vhost:
+
+    To add a user:
+
+        ```
+        sudo rabbitmqctl add_user intern intern
+        # set user as administrator
+        sudo rabbitmqctl set_user_tags hakase administrator 
+        # grant the 'intern' user permission to modify, write, and read all vhosts.
+        sudo rabbitmqctl set_permissions -p / intern ".*" ".*" ".*"
+        # delete guest user
+        sudo rabbitmqctl delete_user guest
+        ```
+    To add vhost :-
+    ```
+        rabbitmqctl add_vhost vhost_name
+    ```
+
+
